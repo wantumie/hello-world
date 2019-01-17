@@ -3,7 +3,7 @@ foo: foo version 1
 
 username: Garfield
 
-encryptTest: ENC(7ASVWv2zCpyJCCVZ1RLbQYSiMXKIhvlZ)
+encryptTest: ENC(L+9kMCn9f63Rjz5BNZtms2CcmKz4jpDy)
 
 jasypt:
   encryptor:
