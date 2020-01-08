@@ -8,3 +8,9 @@ encryptTest: ENC(L+9kMCn9f63Rjz5BNZtms2CcmKz4jpDy)
 jasypt:
   encryptor:
     password: asdflasdfjklas
+
+xf:
+  port: 8086
+  roleId: 1
+  userId: 1000
+  ip: 127.0.0.1
