@@ -1,0 +1,600 @@
+package com.demo.test;
+
+/**
+ * redis工具类
+ *
+ * @Auther Mr.Garfield
+ * @Date 2020/6/15
+ */
+
+
+import org.springframework.beans.factory.InitializingBean;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessException;
+import org.springframework.data.redis.connection.RedisConnection;
+import org.springframework.data.redis.core.RedisCallback;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.serializer.RedisSerializer;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
+import org.springframework.stereotype.Service;
+
+import java.io.UnsupportedEncodingException;
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Service
+public class SpringRedisHandler implements InitializingBean {
+
+    //redis编码
+    private static final String redisCode = "utf-8";
+    private static final String EmptyString = "";
+
+    @Autowired
+    private RedisTemplate<String, String> jtRedis;
+
+    /**
+     * 设置key-value【不含超时时间】
+     *
+     * @param key
+     * @param value
+     */
+    public void set(String key, Object value) {
+        this.set(key, String.valueOf(value), 0L);
+    }
+
+    /**
+     * 设置key-value【含超时时间】
+     *
+     * @param key
+     * @param value
+     * @param liveTime
+     */
+    public void set(String key, Object value, long liveTime) {
+        this.set(key.getBytes(), String.valueOf(value).getBytes(), liveTime);
+    }
+
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private void set(final byte[] key, final byte[] value, final long liveTime) {
+        jtRedis.execute(new RedisCallback() {
+            @Override
+            public Long doInRedis(RedisConnection connection) throws DataAccessException {
+                connection.set(key, value);
+                if (liveTime > 0) {
+                    connection.expire(key, liveTime);
+                }
+                return 1L;
+            }
+        });
+    }
+
+    /**
+     * get key的值
+     *
+     * @param key
+     * @return
+     */
+    public String get(final String key) {
+        return jtRedis.execute(new RedisCallback<String>() {
+            @Override
+            public String doInRedis(RedisConnection connection) throws DataAccessException {
+                try {
+                    return new String(connection.get(key.getBytes()), redisCode);
+                } catch (UnsupportedEncodingException e) {
+                    e.printStackTrace();
+                    return "";
+                }
+            }
+        });
+    }
+
+    /**
+     * 是否存在key
+     *
+     * @param key
+     * @return
+     */
+    public boolean exists(final String key) {
+        return jtRedis.execute(new RedisCallback<Boolean>() {
+            @Override
+            public Boolean doInRedis(RedisConnection connection) throws DataAccessException {
+                return connection.exists(key.getBytes());
+            }
+        });
+    }
+
+    /**
+     * 某数据中所有key的总数
+     *
+     * @return
+     */
+    public long dbSize() {
+        return jtRedis.execute(new RedisCallback<Long>() {
+            @Override
+            public Long doInRedis(RedisConnection connection) throws DataAccessException {
+                return connection.dbSize();
+            }
+        });
+    }
+
+    /**
+     * 检测redis服务器是否能平通
+     */
+    public String ping() {
+        return jtRedis.execute(new RedisCallback<String>() {
+            @Override
+            public String doInRedis(RedisConnection connection) throws DataAccessException {
+                return connection.ping();
+            }
+        });
+    }
+
+    /**
+     * value增加某个值
+     *
+     * @param key
+     * @param value
+     * @return
+     */
+    public Long incr(String key, long value) {
+        return incr(key.getBytes(), value);
+    }
+
+    private Long incr(byte[] key, long value) {
+        return jtRedis.execute(new RedisCallback<Long>() {
+            @Override
+            public Long doInRedis(RedisConnection connection) throws DataAccessException {
+                return connection.incrBy(key, value);
+            }
+        });
+    }
+
+    /**
+     * 自增
+     *
+     * @param key
+     * @return
+     */
+    public Long incr(String key) {
+        return incr(key.getBytes(), 1);
+    }
+
+    /**
+     * 自减
+     *
+     * @param key
+     * @return
+     */
+    public Long decr(String key) {
+        return decr(key.getBytes(), 1);
+    }
+
+    /**
+     * value减少某个值
+     *
+     * @param key
+     * @param value
+     * @return
+     */
+    public Long decr(String key, long value) {
+        return decr(key.getBytes(), value);
+    }
+
+    private Long decr(byte[] key, long value) {
+        return jtRedis.execute(new RedisCallback<Long>() {
+            @Override
+            public Long doInRedis(RedisConnection connection) throws DataAccessException {
+                return connection.decrBy(key, value);
+            }
+        });
+    }
+
+    /**
+     * 删除key
+     *
+     * @param key
+     * @return
+     */
+    public Long del(String key) {
+        return del(key.getBytes());
+    }
+
+    private Long del(byte[] key) {
+        return jtRedis.execute(new RedisCallback<Long>() {
+            @Override
+            public Long doInRedis(RedisConnection connection) throws DataAccessException {
+                return connection.del(key);
+            }
+        });
+    }
+
+    /**
+     * flushdb：删除db下的所有数据
+     */
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public void flushDb() {
+        jtRedis.execute(new RedisCallback() {
+            @Override
+            public Long doInRedis(RedisConnection connection) throws DataAccessException {
+                connection.flushDb();
+                return 1L;
+            }
+        });
+    }
+
+    /**
+     * 设置hash
+     *
+     * @param key
+     * @param field
+     * @param value
+     * @return
+     */
+    public Boolean hSet(String key, String field, String value) {
+        return jtRedis.execute(new RedisCallback<Boolean>() {
+            @Override
+            public Boolean doInRedis(RedisConnection redisConnection) throws DataAccessException {
+                return redisConnection.hSet(key.getBytes(), field.getBytes(), value.getBytes());
+            }
+        });
+    }
+
+    /**
+     * 获取hash的属性值
+     *
+     * @param key
+     * @param field
+     * @return
+     */
+    public String hGet(String key, String field) {
+        return jtRedis.execute(new RedisCallback<String>() {
+            @Override
+            public String doInRedis(RedisConnection redisConnection) throws DataAccessException {
+                return new String(redisConnection.hGet(key.getBytes(), field.getBytes()));
+            }
+        });
+    }
+
+    /**
+     * 批量设置hash
+     *
+     * @param key
+     * @param values
+     */
+    public void hMSet(String key, Map<String, Object> values) {
+        jtRedis.execute(new RedisCallback<Long>() {
+            @Override
+            public Long doInRedis(RedisConnection redisConnection) throws DataAccessException {
+                redisConnection.hMSet(key.getBytes(), stringObjectMapToBytes(values));
+                return null;
+            }
+        });
+    }
+
+    /**
+     * 批量获取hash的多个属性
+     *
+     * @param key
+     * @param fields
+     * @return
+     */
+    public List<String> hMGet(String key, String... fields) {
+        return jtRedis.execute(new RedisCallback<List<String>>() {
+            @Override
+            public List<String> doInRedis(RedisConnection redisConnection) throws DataAccessException {
+                List<String> listFileds = new ArrayList<>();
+                for (int i = 0; i < fields.length; i++) {
+                    listFileds.add(fields[i]);
+                }
+
+                List<byte[]> byteFileds = stringListToByte(listFileds);
+                return bytesListToString(redisConnection.hMGet(key.getBytes(), byteFileds.toArray(new byte[byteFileds.size()][byteFileds.size()])));
+            }
+        });
+    }
+
+    /**
+     * 获取hash的所有属性
+     *
+     * @param key
+     * @return
+     */
+    public Map<String, String> hGetAll(String key) {
+        return jtRedis.execute(new RedisCallback<Map<String, String>>() {
+            @Override
+            public Map<String, String> doInRedis(RedisConnection redisConnection) throws DataAccessException {
+                return bytesMapToString(redisConnection.hGetAll(key.getBytes()));
+            }
+        });
+    }
+
+    /**
+     * 针对hash中某个属性增加指定的值
+     *
+     * @param key
+     * @param field
+     * @param value
+     * @return
+     */
+    public Double hIncrBy(String key, String field, double value) {
+        return jtRedis.execute(new RedisCallback<Double>() {
+            @Override
+            public Double doInRedis(RedisConnection redisConnection) throws DataAccessException {
+                return redisConnection.hIncrBy(key.getBytes(), field.getBytes(), value);
+            }
+        });
+    }
+
+    /**
+     * hash是存在某属性
+     *
+     * @param key
+     * @param field
+     * @return
+     */
+    public Boolean hExists(String key, String field) {
+        return jtRedis.execute(new RedisCallback<Boolean>() {
+            @Override
+            public Boolean doInRedis(RedisConnection redisConnection) throws DataAccessException {
+                return redisConnection.hExists(key.getBytes(), field.getBytes());
+            }
+        });
+    }
+
+    /**
+     * 删除hash的某属性
+     *
+     * @param key
+     * @param field
+     * @return
+     */
+    public Long hDel(String key, String field) {
+        return jtRedis.execute(new RedisCallback<Long>() {
+            @Override
+            public Long doInRedis(RedisConnection redisConnection) throws DataAccessException {
+                return redisConnection.hDel(key.getBytes(), field.getBytes());
+            }
+        });
+    }
+
+    /**
+     * 向zset中的某个key添加一个属性几分数（可以根据分数排序）
+     *
+     * @param key
+     * @param score
+     * @param field
+     * @return
+     */
+    public Boolean zAdd(String key, double score, String field) {
+        return jtRedis.execute(new RedisCallback<Boolean>() {
+            @Override
+            public Boolean doInRedis(RedisConnection redisConnection) throws DataAccessException {
+                return redisConnection.zAdd(key.getBytes(), score, field.getBytes());
+            }
+        });
+    }
+
+    /**
+     * 给zset中的某个key中的某个属性增加指定分数
+     *
+     * @param key
+     * @param score
+     * @param field
+     * @return
+     */
+    public Double zIncrBy(String key, double score, String field) {
+        return jtRedis.execute(new RedisCallback<Double>() {
+            @Override
+            public Double doInRedis(RedisConnection redisConnection) throws DataAccessException {
+                return redisConnection.zIncrBy(key.getBytes(), score, field.getBytes());
+            }
+        });
+    }
+
+    /**
+     * 从list左侧插入一个元素
+     *
+     * @param key
+     * @param values
+     * @return
+     */
+    public Long lPush(String key, String value) {
+        return jtRedis.execute(new RedisCallback<Long>() {
+            @Override
+            public Long doInRedis(RedisConnection connection) throws DataAccessException {
+                return connection.lPush(key.getBytes(), value.getBytes());
+            }
+        });
+    }
+
+    /**
+     * 从list左侧插入多个元素
+     *
+     * @param key
+     * @param values
+     * @return
+     */
+    public Long lPush(String key, List<String> values) {
+        return jtRedis.execute(new RedisCallback<Long>() {
+            @Override
+            public Long doInRedis(RedisConnection connection) throws DataAccessException {
+                List<byte[]> bytes = stringListToByte(values);
+                return connection.lPush(key.getBytes(), bytes.toArray(new byte[bytes.size()][bytes.size()]));
+            }
+        });
+    }
+
+    /**
+     * 从list的左侧取出一个元素
+     *
+     * @param key
+     * @return
+     */
+    public String lPop(String key) {
+        return jtRedis.execute(new RedisCallback<String>() {
+            @Override
+            public String doInRedis(RedisConnection connection) throws DataAccessException {
+                if (connection.lLen(key.getBytes()) > 0) {
+                    return new String(connection.lPop(key.getBytes()));
+                } else {
+                    return EmptyString;
+                }
+            }
+        });
+    }
+
+    /**
+     * 向list的右侧插入一个元素
+     *
+     * @param key
+     * @param value
+     * @return
+     */
+    public Long rPush(String key, String value) {
+        return jtRedis.execute(new RedisCallback<Long>() {
+            @Override
+            public Long doInRedis(RedisConnection connection) throws DataAccessException {
+                return connection.rPush(key.getBytes(), value.getBytes());
+            }
+        });
+    }
+
+    /**
+     * list的rpush，从右侧插入多个元素
+     *
+     * @param key
+     * @param values
+     * @return
+     */
+    public Long rPush(String key, List<String> values) {
+        return jtRedis.execute(new RedisCallback<Long>() {
+            @Override
+            public Long doInRedis(RedisConnection connection) throws DataAccessException {
+                List<byte[]> bytes = stringListToByte(values);
+                return connection.rPush(key.getBytes(), bytes.toArray(new byte[bytes.size()][bytes.size()]));
+            }
+        });
+    }
+
+    /**
+     * 从list的右侧取出一个元素
+     *
+     * @param key
+     * @return
+     */
+    public String rPop(String key) {
+        return jtRedis.execute(new RedisCallback<String>() {
+            @Override
+            public String doInRedis(RedisConnection connection) throws DataAccessException {
+                if (connection.lLen(key.getBytes()) > 0) {
+                    return new String(connection.rPop(key.getBytes()));
+                } else {
+                    return EmptyString;
+                }
+            }
+        });
+    }
+
+    /**
+     * 给set中添加元素
+     *
+     * @param key
+     * @param values
+     * @return
+     */
+    public Long sadd(String key, List<String> values) {
+        return jtRedis.execute(new RedisCallback<Long>() {
+            @Override
+            public Long doInRedis(RedisConnection connection) throws DataAccessException {
+                List<byte[]> bytes = stringListToByte(values);
+                return connection.sAdd(key.getBytes(), bytes.toArray(new byte[bytes.size()][bytes.size()]));
+            }
+        });
+    }
+
+    /**
+     * 获取set中的所有元素
+     *
+     * @param key
+     * @return
+     */
+    public List<String> smembers(String key) {
+        return jtRedis.execute(new RedisCallback<List<String>>() {
+            @Override
+            public List<String> doInRedis(RedisConnection connection) throws DataAccessException {
+                return bytesListToString(connection.sMembers(key.getBytes()));
+            }
+        });
+    }
+
+    /**
+     * set中是否包含某元素
+     *
+     * @param key
+     * @param value
+     * @return
+     */
+    public Boolean sIsMember(String key, String value) {
+        return jtRedis.execute(new RedisCallback<Boolean>() {
+            @Override
+            public Boolean doInRedis(RedisConnection connection) throws DataAccessException {
+                return connection.sIsMember(key.getBytes(), value.getBytes());
+            }
+        });
+    }
+
+    private byte[][] change(List<byte[]> values) {
+        byte[][] result = {};
+        return result;
+    }
+
+    private List<byte[]> stringListToByte(List<String> values) {
+        return values
+                .stream()
+                .map(p -> p.getBytes())
+                .collect(
+                        Collectors.toList()
+                );
+    }
+
+    private List<String> bytesListToString(Collection<byte[]> values) {
+        return values
+                .stream()
+                .map(p -> new String(p))
+                .collect(
+                        Collectors.toList()
+                );
+    }
+
+    private Map<String, String> bytesMapToString(Map<byte[], byte[]> values) {
+        Map<String, String> result = new HashMap<>();
+        values.forEach((k, v) -> result.put(new String(k), new String(v)));
+        return result;
+    }
+
+    private Map<byte[], byte[]> stringObjectMapToBytes(Map<String, Object> values) {
+        Map<byte[], byte[]> result = new HashMap<>();
+        values.forEach((k, v) -> result.put(k.getBytes(), String.valueOf(v).getBytes()));
+        return result;
+    }
+
+    /**
+     * 正则表达式获取值
+     *
+     * @param pattern
+     * @return
+     */
+    public Set<String> keys(String pattern) {
+        return jtRedis.keys(pattern);
+    }
+
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        RedisSerializer<String> stringSerializer = new StringRedisSerializer();
+        jtRedis.setKeySerializer(stringSerializer);
+        jtRedis.setValueSerializer(stringSerializer);
+        jtRedis.setHashKeySerializer(stringSerializer);
+        jtRedis.setHashValueSerializer(stringSerializer);
+    }
+}
+
